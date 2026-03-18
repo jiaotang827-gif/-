@@ -1,0 +1,69 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    // Collection: reagents
+    // Document ID: auto-generated
+    // Fields:
+    //   - nameZh: string (required, < 200 chars)
+    //   - nameEn: string (required, < 200 chars)
+    //   - cas: string (required, < 50 chars)
+    //   - specification: string (required, < 100 chars)
+    //   - purity: string (required, < 100 chars)
+    //   - brand: string (required, < 200 chars)
+    //   - stock: string (required, < 100 chars)
+    //   - location: string (required, < 200 chars)
+    //   - manager: string (required, < 100 chars)
+    //   - updatedAt: number (required, > 0)
+    //   - updatedBy: string (required, matches auth.uid)
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidOptionalString(field, maxLen) {
+      return !(field in request.resource.data) || (request.resource.data[field] is string && request.resource.data[field].size() <= maxLen);
+    }
+
+    function isValidReagent() {
+      return hasRequiredFields(['updatedAt', 'updatedBy']) &&
+             hasOnlyAllowedFields(['nameZh', 'nameEn', 'cas', 'specification', 'purity', 'brand', 'stock', 'location', 'manager', 'updatedAt', 'updatedBy']) &&
+             isValidOptionalString('nameZh', 200) &&
+             isValidOptionalString('nameEn', 200) &&
+             isValidOptionalString('cas', 50) &&
+             isValidOptionalString('specification', 100) &&
+             isValidOptionalString('purity', 100) &&
+             isValidOptionalString('brand', 200) &&
+             isValidOptionalString('stock', 100) &&
+             isValidOptionalString('location', 200) &&
+             isValidOptionalString('manager', 100) &&
+             request.resource.data.updatedAt is number &&
+             request.resource.data.updatedAt > 0 &&
+             request.resource.data.updatedBy == request.auth.uid;
+    }
+
+    match /reagents/{reagentId} {
+      // Anyone authenticated can read
+      allow read: if isAuthenticated();
+      
+      // Anyone authenticated can create/update as long as it's a valid reagent
+      allow create: if isAuthenticated() && isValidReagent();
+      allow update: if isAuthenticated() && isValidReagent();
+      
+      // Anyone authenticated can delete (it's a shared lab DB)
+      allow delete: if isAuthenticated();
+    }
+  }
+}

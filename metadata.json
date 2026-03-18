@@ -1,0 +1,5 @@
+{
+  "name": "Food Microbiome Reagent Management System",
+  "description": "A real-time, multi-user web application to manage lab reagents for the Food Microbiome lab.",
+  "requestFramePermissions": []
+}

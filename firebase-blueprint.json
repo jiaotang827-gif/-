@@ -1,0 +1,29 @@
+{
+  "entities": {
+    "Reagent": {
+      "title": "Reagent",
+      "description": "A chemical reagent in the lab.",
+      "type": "object",
+      "properties": {
+        "nameZh": { "type": "string", "description": "Chinese Name (中文名称)" },
+        "nameEn": { "type": "string", "description": "English Name (英文名称)" },
+        "cas": { "type": "string", "description": "CAS Number (CAS号)" },
+        "specification": { "type": "string", "description": "Specification (规格)" },
+        "purity": { "type": "string", "description": "Purity (纯度)" },
+        "brand": { "type": "string", "description": "Brand (品牌)" },
+        "stock": { "type": "string", "description": "Current Stock (现存量)" },
+        "location": { "type": "string", "description": "Storage Location (储存位置)" },
+        "manager": { "type": "string", "description": "Manager (管理人)" },
+        "updatedAt": { "type": "number", "description": "Last updated timestamp" },
+        "updatedBy": { "type": "string", "description": "User ID of the last updater" }
+      },
+      "required": ["updatedAt", "updatedBy"]
+    }
+  },
+  "firestore": {
+    "/reagents/{reagentId}": {
+      "schema": { "$ref": "#/entities/Reagent" },
+      "description": "Collection of all reagents in the lab."
+    }
+  }
+}
