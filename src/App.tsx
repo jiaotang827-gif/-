@@ -136,7 +136,7 @@ export default function App() {
 
   // Data Fetching
   useEffect(() => {
-    if (!isAuthReady || !user) return;
+    if (!isAuthReady) return;
 
     const q = query(collection(db, 'reagents'), orderBy('updatedAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -249,26 +249,8 @@ export default function App() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {!user ? (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-12 text-center max-w-lg mx-auto mt-12">
-            <div className="bg-emerald-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-emerald-600">
-              <AlertCircle size={32} />
-            </div>
-            <h2 className="text-xl font-semibold mb-2">{t.requireLogin}</h2>
-            <p className="text-gray-500 mb-6">
-              {lang === 'zh' ? '请使用您的 Google 账号登录以访问实验室试剂数据库。' : 'Please sign in with your Google account to access the lab reagent database.'}
-            </p>
-            <button 
-              onClick={signInWithGoogle}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-medium transition-colors w-full sm:w-auto"
-            >
-              {t.login}
-            </button>
-          </div>
-        ) : (
-          <>
-            {/* Toolbar */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center mb-6">
+        {/* Toolbar */}
+        <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center mb-6">
               <div className="relative w-full sm:max-w-md">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Search className="h-5 w-5 text-gray-400" />
@@ -394,8 +376,6 @@ export default function App() {
                 </div>
               </>
             )}
-          </>
-        )}
       </main>
 
       {/* Modal */}
@@ -499,14 +479,13 @@ function ReagentModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
     setIsSubmitting(true);
 
     try {
       const payload = {
         ...formData,
         updatedAt: Date.now(),
-        updatedBy: user.uid
+        updatedBy: user?.uid || 'guest'
       };
 
       if (reagent) {

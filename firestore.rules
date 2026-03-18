@@ -51,19 +51,17 @@ service cloud.firestore {
              isValidOptionalString('manager', 100) &&
              request.resource.data.updatedAt is number &&
              request.resource.data.updatedAt > 0 &&
-             request.resource.data.updatedBy == request.auth.uid;
+             request.resource.data.updatedBy is string;
     }
 
     match /reagents/{reagentId} {
-      // Anyone authenticated can read
-      allow read: if isAuthenticated();
+      // Public read access
+      allow read: if true;
       
-      // Anyone authenticated can create/update as long as it's a valid reagent
-      allow create: if isAuthenticated() && isValidReagent();
-      allow update: if isAuthenticated() && isValidReagent();
-      
-      // Anyone authenticated can delete (it's a shared lab DB)
-      allow delete: if isAuthenticated();
+      // Public create/update/delete access with validation
+      allow create: if isValidReagent();
+      allow update: if isValidReagent();
+      allow delete: if true;
     }
   }
 }
