@@ -136,8 +136,6 @@ export default function App() {
 
   // Data Fetching
   useEffect(() => {
-    if (!isAuthReady) return;
-
     const q = query(collection(db, 'reagents'), orderBy('updatedAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({
@@ -150,7 +148,7 @@ export default function App() {
     });
 
     return () => unsubscribe();
-  }, [isAuthReady, user]);
+  }, []);
 
   const filteredReagents = useMemo(() => {
     if (!searchQuery.trim()) return reagents;
@@ -185,17 +183,6 @@ export default function App() {
     setIsModalOpen(true);
   };
 
-  if (!isAuthReady) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-gray-500 flex items-center gap-2">
-          <FlaskConical className="animate-pulse" />
-          <span>{t.loading}</span>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
       {/* Header */}
@@ -222,28 +209,6 @@ export default function App() {
               <Globe size={20} />
               <span className="text-sm font-medium uppercase">{lang}</span>
             </button>
-            
-            {user ? (
-              <div className="flex items-center gap-3">
-                <div className="hidden sm:flex items-center gap-2">
-                  <img src={user.photoURL || ''} alt="avatar" className="w-8 h-8 rounded-full border border-gray-200" referrerPolicy="no-referrer" />
-                </div>
-                <button 
-                  onClick={logOut}
-                  className="p-2 text-gray-500 hover:bg-red-50 hover:text-red-600 rounded-full transition-colors"
-                  title={t.logout}
-                >
-                  <LogOut size={20} />
-                </button>
-              </div>
-            ) : (
-              <button 
-                onClick={signInWithGoogle}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                {t.login}
-              </button>
-            )}
           </div>
         </div>
       </header>
