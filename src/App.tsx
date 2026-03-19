@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { io, Socket } from 'socket.io-client';
-import { Search, Plus, Edit2, Trash2, Globe, FlaskConical, AlertCircle } from 'lucide-react';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
+import { auth, db, signInWithGoogle, logOut } from './firebase';
+import { Search, Plus, Edit2, Trash2, LogOut, Globe, FlaskConical, AlertCircle } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-
-// Initialize Socket.io client
-const socket: Socket = io();
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -100,6 +99,10 @@ enum OperationType {
 function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null, setErrorMessage: (msg: string) => void) {
   const errInfo = {
     error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+    },
     operationType,
     path
   };
@@ -109,6 +112,8 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 
 // --- Main Component ---
 export default function App() {
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
   const [lang, setLang] = useState<Lang>('zh');
   const t = translations[lang];
 
@@ -119,21 +124,30 @@ export default function App() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
 
-  // Socket.io Listener
+  // Auth Listener
   useEffect(() => {
-    socket.on('connect', () => setIsConnected(true));
-    socket.on('disconnect', () => setIsConnected(false));
-    socket.on('reagents:update', (data: Reagent[]) => setReagents(data));
-    socket.on('error', (msg: string) => setErrorMessage(msg));
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setIsAuthReady(true);
+    });
+    return () => unsubscribe();
+  }, []);
 
-    return () => {
-      socket.off('connect');
-      socket.off('disconnect');
-      socket.off('reagents:update');
-      socket.off('error');
-    };
+  // Data Fetching
+  useEffect(() => {
+    const q = query(collection(db, 'reagents'), orderBy('updatedAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Reagent[];
+      setReagents(data);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'reagents', setErrorMessage);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const filteredReagents = useMemo(() => {
@@ -149,9 +163,14 @@ export default function App() {
   const handleDelete = async () => {
     if (!deletingId) return;
     setIsDeleting(true);
-    socket.emit('reagents:delete', deletingId);
-    setDeletingId(null);
-    setIsDeleting(false);
+    try {
+      await deleteDoc(doc(db, 'reagents', deletingId));
+      setDeletingId(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `reagents/${deletingId}`, setErrorMessage);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const openAddModal = () => {
@@ -190,7 +209,6 @@ export default function App() {
               <Globe size={20} />
               <span className="text-sm font-medium uppercase">{lang}</span>
             </button>
-            <div className={cn("w-3 h-3 rounded-full", isConnected ? "bg-emerald-500" : "bg-red-500")} title={isConnected ? "Connected" : "Disconnected"} />
           </div>
         </div>
       </header>
@@ -332,6 +350,7 @@ export default function App() {
           onClose={() => setIsModalOpen(false)} 
           reagent={editingReagent} 
           t={t} 
+          user={user}
           setErrorMessage={setErrorMessage}
         />
       )}
@@ -396,12 +415,14 @@ function ReagentModal({
   onClose, 
   reagent, 
   t,
+  user,
   setErrorMessage
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
   reagent: Reagent | null; 
   t: any;
+  user: User | null;
   setErrorMessage: (msg: string) => void;
 }) {
   const [formData, setFormData] = useState({
@@ -425,19 +446,24 @@ function ReagentModal({
     e.preventDefault();
     setIsSubmitting(true);
 
-    const payload = {
-      ...formData,
-      updatedAt: Date.now(),
-      updatedBy: 'guest'
-    };
+    try {
+      const payload = {
+        ...formData,
+        updatedAt: Date.now(),
+        updatedBy: user?.uid || 'guest'
+      };
 
-    if (reagent) {
-      socket.emit('reagents:update', { id: reagent.id, data: payload });
-    } else {
-      socket.emit('reagents:add', payload);
+      if (reagent) {
+        await updateDoc(doc(db, 'reagents', reagent.id), payload);
+      } else {
+        await addDoc(collection(db, 'reagents'), payload);
+      }
+      onClose();
+    } catch (error) {
+      handleFirestoreError(error, reagent ? OperationType.UPDATE : OperationType.CREATE, reagent ? `reagents/${reagent.id}` : 'reagents', setErrorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
-    onClose();
-    setIsSubmitting(false);
   };
 
   return (
